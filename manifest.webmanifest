@@ -1,0 +1,17 @@
+{
+  "name": "Domates Zamanlayıcı",
+  "short_name": "Domates",
+  "description": "Pomodoro zamanlayıcı, görev takibi ve çalışma günlüğü. İnternetsiz çalışır.",
+  "lang": "tr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#edf1ea",
+  "theme_color": "#df4429",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
