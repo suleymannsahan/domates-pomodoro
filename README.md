@@ -3,6 +3,19 @@
 Telefona, tablete ve bilgisayara kurulan Pomodoro uygulaması. Kurulduktan sonra **internet olmadan** çalışır, sayacı **bildirim panelinde** gösterir.
 Veriler cihazda saklanır. Claude'daki sürümle veri taşımak için **Ayarlar › Yedek ve aktarım** bölümünü kullan.
 
+## Özellikler (sürüm 5)
+
+- **Görevler:** Bugün / Yaklaşan / Tümü sekmeleri. Görev eklerken **⋯** ile etiket, tarih ve tekrar (her gün, hafta içi, her hafta) seç. Tekrarlanan görevi bitirince bir sonrakisi kendiliğinden oluşur.
+- **Alt görevler ve düzenleme:** Görevin sağındaki **⌄** okuyla alt görev ekle, adını, etiketini, tarihini ve tahminini değiştir.
+- **Sıralama:** Görevin solundaki noktalı tutamaçtan sürükleyerek sırala (dokunmatik ekranda da çalışır).
+- **Etiketler:** Etiketli görevlerde geçen süre ve elle eklenen süreler, haftalık grafiğin altında etiketlere göre dağılır.
+- **Günlük hedef:** Ayarlar › Süreler bölümünde dakika olarak gir (0 = kapalı). Kadranın dış halkası dolar, "Hedef serisi" hedefi tutturduğun ardışık günleri sayar.
+- **Son 12 ay:** GitHub tarzı ısı haritası; bir güne dokununca o günün günlüğü açılır. Ay, yıl, toplam ve en iyi gün toplamları.
+- **Excel (CSV) indir:** Ayarlar › Yedek ve aktarım. Her gün bir satır: pomodoro, dakika, etiketler, görevler, notlar.
+- **Arka plan sesi:** Yağmur, dalga, beyaz ve kahverengi gürültü. Uygulama kendisi üretir, internet gerekmez. Yalnızca odak sırasında çalar.
+- **Odak modu:** Kadranın yanındaki köşeli düğme ya da **F** tuşu. Yalnızca sayaç ve görev görünür.
+- **Aklıma geldi:** Odak sırasında aklına geleni yaz (kısayol **A**), odağa dön. Notlar Görevler bölümünde ve o günün günlüğünde görünür; tek dokunuşla göreve çevrilir.
+
 ## 1. Yayınla (GitHub Pages, ücretsiz)
 
 1. GitHub'da yeni bir **public** depo aç (örneğin `domates`).
@@ -42,6 +55,14 @@ Uygulamayı kapatsan bile sayaç durmaz. Tekrar açtığında kaldığı yerden 
 - **Android:** Uygulamayı arka plana alıp uzun süre başka işle uğraşırsan telefon pil tasarrufu için uygulamayı dondurabilir. O durumda "bitti" uyarısı uygulamayı tekrar açtığında gelir. Bildirimdeki **bitiş saati** her zaman doğrudur. Daha güvenilir olması için: *Ayarlar › Uygulamalar › Chrome › Pil › Kısıtlanmamış*.
 - **Bilgisayar:** Pencereyi küçültebilirsin, sayaç ve uyarılar doğru zamanda çalışır. Pencereyi tamamen kapatırsan uyarı, uygulamayı yeniden açtığında gelir. Windows'ta *Ayarlar › Sistem › Bildirimler* bölümünde Chrome/Edge'in açık olduğundan emin ol. Mac'te bunun için *Sistem Ayarları › Bildirimler* bölümüne bak.
 
+## 3a. Hesap ve eşitleme (sürüm 6)
+
+Ayarlar › **Hesap ve eşitleme**: ilk cihazda **Hesap oluştur**, diğerlerinde aynı e-posta ve şifreyle **Giriş yap**.
+- Görevler, süreler, etiketler, notlar ve ayarlar tüm cihazlarda kendiliğinden eşitlenir. Açık olan diğer cihazlar birkaç saniye içinde güncellenir; arka plandaki uygulama öne gelince güncellenir.
+- İlk girişte o cihazdaki veriler hesaba eklenir, hiçbir şey silinmez.
+- İnternet yokken çalışmaya devam eder; bağlantı gelince değişiklikler kendiliğinden gönderilir. Sağ üstteki gösterge durumu söyler, ona dokununca hesap ayarları açılır.
+- Veriler Supabase projendeki `domates_docs` tablosunda durur ve yalnızca senin hesabın okuyabilir.
+
 ## 3b. iPad / iPhone: kilit ekranında canlı sayaç
 
 Web uygulamaları kilit ekranında canlı sayaç gösteremez, ama iPad'in **Saat zamanlayıcısı** gösterebilir: en üstte sabit durur, canlı sayar, **duraklat / iptal** düğmeleri vardır. Domates, Başlat'a bastığında bu zamanlayıcıyı aynı süreyle başlatabilir.
@@ -68,7 +89,7 @@ Bir tarafta *Ayarlar › Panoya kopyala* (ya da *Dosyaya aktar*), diğer tarafta
 
 ## Güncelleme
 
-Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v4`).
+Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v6`).
 
 ## Dosyalar
 
@@ -79,3 +100,4 @@ Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artı
 | `manifest.webmanifest` | Ad, renk ve simgeler; kurulumu sağlar |
 | `icon-*.png`, `apple-touch-icon.png` | Uygulama simgeleri |
 | `icon-badge.png` | Android durum çubuğundaki küçük simge |
+| `supabase.js` | Hesap ve eşitleme kitaplığı (internetsiz açılabilmek için uygulamanın içinde) |
