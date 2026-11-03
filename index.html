@@ -337,6 +337,12 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
       <p class="hint" id="notifState"></p>
       <div><button type="button" class="icon-btn" id="notifTest">Deneme bildirimi gönder</button></div>
     </fieldset>
+    <fieldset id="iosBox" hidden>
+      <legend>iPad / iPhone kilit ekranı</legend>
+      <div class="row"><label for="iosTimerOn">Başlatınca Saat zamanlayıcısını da başlat</label><input id="iosTimerOn" class="switch" type="checkbox"></div>
+      <p class="hint">Saat zamanlayıcısı kilit ekranının en üstünde canlı sayar; duraklat ve iptal düğmeleri vardır. Bunun için bir kez “Domates Sayaç” adlı kısayolu kurman gerekir (adımlar README'de).</p>
+      <div><button type="button" class="icon-btn" id="iosTest">1 dakikalık deneme başlat</button></div>
+    </fieldset>
     <fieldset>
       <legend>Ses</legend>
       <div class="row"><label for="soundOn">Bitiş zili</label><input id="soundOn" class="switch" type="checkbox"></div>
@@ -369,7 +375,7 @@ const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem('dom_'+k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem('dom_'+k,JSON.stringify(v))}catch(e){}window.__cm&&window.__cm(k)}};
 
-const DEF={focus:25,short:5,long:15,every:4,autoBreak:false,autoFocus:false,autoCheck:true,sound:true,tick:false,vol:.6,notif:false};
+const DEF={focus:25,short:5,long:15,every:4,autoBreak:false,autoFocus:false,autoCheck:true,sound:true,tick:false,vol:.6,notif:false,iosTimer:false};
 let S={...DEF,...store.get('settings',{})};
 let tasks=store.get('tasks',null);
 if(!tasks){tasks=[
@@ -530,7 +536,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running){try{navigator.wakeLock?.request('screen').then(w=>wake=w).catch(()=>{})}catch(e){}}});
 
 /* settings */
-const F={dFocus:'focus',dShort:'short',dLong:'long',dEvery:'every'},B={autoBreak:'autoBreak',autoFocus:'autoFocus',autoCheck:'autoCheck',soundOn:'sound',tickOn:'tick',notifOn:'notif'};
+const F={dFocus:'focus',dShort:'short',dLong:'long',dEvery:'every'},B={autoBreak:'autoBreak',autoFocus:'autoFocus',autoCheck:'autoCheck',soundOn:'sound',tickOn:'tick',notifOn:'notif',iosTimerOn:'iosTimer'};
 function openSet(){for(const id in F)$('#'+id).value=S[F[id]];for(const id in B)$('#'+id).checked=S[B[id]];$('#vol').value=S.vol;
   $('#resetData').classList.remove('armed');$('#resetData').textContent='Tüm verileri sil';$('#settings').hidden=false;$('#dFocus').focus()}
 function closeSet(){
@@ -621,10 +627,16 @@ N.done=(was)=>{if(!N.ok())return;N.close('domates-due');
 /* timer state survives closing the app */
 function saveTimer(){store.set('timer',{mode,running,endAt,remaining,total})}
 const _start=start,_pause=pause,_complete=complete,_setMode=setMode;
-start=function(){const was=running;_start();if(!was&&running){saveTimer();N.sync();N.schedule()}};
+/* iPad/iPhone: also start the Clock app's timer via a Shortcut; it counts live on the Lock Screen with pause/cancel buttons */
+N.inComplete=false;
+const SC_NAME='Domates Sayaç';
+function runClockTimer(min){const a=document.createElement('a');a.href='shortcuts://run-shortcut?name='+encodeURIComponent(SC_NAME)+'&input=text&text='+min;
+  a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500)}
+start=function(){const was=running,fresh=remaining>=total;_start();if(!was&&running){saveTimer();N.sync();N.schedule();
+  if(S.iosTimer&&fresh&&!N.inComplete)setTimeout(()=>runClockTimer(Math.round(total/60000)),250)}};
 pause=function(){const was=running;_pause();if(was&&!running){saveTimer();N.sync();N.close('domates-due')}};
 setMode=function(m,k){_setMode(m,k);saveTimer();if(!running)N.sync()};
-complete=function(skipped){const was=mode;_complete(skipped);saveTimer();if(skipped){N.close('domates-due');N.sync()}else N.done(was)};
+complete=function(skipped){const was=mode;N.inComplete=true;try{_complete(skipped)}finally{N.inComplete=false}saveTimer();if(skipped){N.close('domates-due');N.sync()}else N.done(was)};
 $('#resetBtn').addEventListener('click',()=>{saveTimer();N.sync()});
 
 /* a worker keeps ticking when the window is minimised (page timers get slowed down) */
@@ -665,6 +677,11 @@ $('#notifOn').addEventListener('change',async e=>{
 $('#notifTest').addEventListener('click',async()=>{if(!N.ok()){toast('Önce bildirimleri aç');return}
   await N.show('Domates bildirimleri çalışıyor 🍅',{body:'Sayaç burada görünecek.',silent:false,renotify:true});setTimeout(N.sync,4000)});
 $('#openSettings').addEventListener('click',()=>{$('#notifOn').checked=!!S.notif;notifState()});
+
+/* settings: iPad/iPhone Clock timer */
+$('#iosBox').hidden=!isIOS;
+$('#iosTimerOn').addEventListener('change',e=>{S.iosTimer=e.target.checked;store.set('settings',S)});
+$('#iosTest').addEventListener('click',()=>runClockTimer(1));
 
 
 /* backup: export / import (merges, never deletes) */

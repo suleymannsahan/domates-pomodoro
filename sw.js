@@ -1,5 +1,5 @@
 // Domates offline service worker
-const VERSION = 'domates-v3';
+const VERSION = 'domates-v4';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './icon-badge.png'];
 
 self.addEventListener('install', e => {

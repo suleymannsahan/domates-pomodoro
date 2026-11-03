@@ -42,6 +42,25 @@ Uygulamayı kapatsan bile sayaç durmaz. Tekrar açtığında kaldığı yerden 
 - **Android:** Uygulamayı arka plana alıp uzun süre başka işle uğraşırsan telefon pil tasarrufu için uygulamayı dondurabilir. O durumda "bitti" uyarısı uygulamayı tekrar açtığında gelir. Bildirimdeki **bitiş saati** her zaman doğrudur. Daha güvenilir olması için: *Ayarlar › Uygulamalar › Chrome › Pil › Kısıtlanmamış*.
 - **Bilgisayar:** Pencereyi küçültebilirsin, sayaç ve uyarılar doğru zamanda çalışır. Pencereyi tamamen kapatırsan uyarı, uygulamayı yeniden açtığında gelir. Windows'ta *Ayarlar › Sistem › Bildirimler* bölümünde Chrome/Edge'in açık olduğundan emin ol. Mac'te bunun için *Sistem Ayarları › Bildirimler* bölümüne bak.
 
+## 3b. iPad / iPhone: kilit ekranında canlı sayaç
+
+Web uygulamaları kilit ekranında canlı sayaç gösteremez, ama iPad'in **Saat zamanlayıcısı** gösterebilir: en üstte sabit durur, canlı sayar, **duraklat / iptal** düğmeleri vardır. Domates, Başlat'a bastığında bu zamanlayıcıyı aynı süreyle başlatabilir.
+
+**Bir kez kısayolu kur:**
+1. **Kısayollar** uygulamasını aç, sağ üstteki **+** düğmesine dokun.
+2. **Eylem Ekle**'ye dokun, aramaya **zamanlayıcı** yaz, **Zamanlayıcıyı Başlat**'ı seç.
+3. Eylemdeki süre kutusuna (mavi **30**) dokun, klavyenin üstündeki **Kısayol Girdisi**'ni seç. Birim **dakika** kalsın.
+4. En üstteki adı **Domates Sayaç** yap (büyük/küçük harf ve Türkçe karakterler aynı olmalı). **Bitti**'ye dokun.
+
+**Domates'te aç:** Ayarlar › **iPad / iPhone kilit ekranı** › *Başlatınca Saat zamanlayıcısını da başlat*. **1 dakikalık deneme başlat** ile dene: Kısayollar bir an açılır, zamanlayıcı başlar. Domates'e geri dön (ekranın altından yukarı kaydır ya da uygulama değiştiriciden).
+
+İlk çalıştırmada iPad "Domates, Kısayollar'ı açmak istiyor" diye sorabilir: **Aç**'a dokun.
+
+**Bilmen gerekenler:**
+- Saat zamanlayıcısı ayrı çalışır. Yalnızca **yeni** bir süre başladığında açılır. Duraklat/devam et'i Domates'te yaparsan Saat'tekini de kilit ekranından duraklatman gerekir.
+- Mola veya odak otomatik başlıyorsa (Ayarlar › Otomatik) Saat zamanlayıcısı açılmaz; iPad bir uygulamanın kendiliğinden başka uygulama açmasına izin vermez. En iyisi Başlat'a kendin basmak.
+- Kilit ekranında görünmesi için iPadOS 17 veya üstü gerekir.
+
 ## 4. Claude sürümüyle veri taşıma
 
 Bir tarafta *Ayarlar › Panoya kopyala* (ya da *Dosyaya aktar*), diğer tarafta *Ayarlar › kutuya yapıştır › Yapıştırılanı içe aktar*.
@@ -49,7 +68,7 @@ Bir tarafta *Ayarlar › Panoya kopyala* (ya da *Dosyaya aktar*), diğer tarafta
 
 ## Güncelleme
 
-Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v3`).
+Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v4`).
 
 ## Dosyalar
 
