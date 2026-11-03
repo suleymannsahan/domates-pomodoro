@@ -63,6 +63,12 @@ Ayarlar › **Hesap ve eşitleme**: ilk cihazda **Hesap oluştur**, diğerlerind
 - İnternet yokken çalışmaya devam eder; bağlantı gelince değişiklikler kendiliğinden gönderilir. Sağ üstteki gösterge durumu söyler, ona dokununca hesap ayarları açılır.
 - Veriler Supabase projendeki `domates_docs` tablosunda durur ve yalnızca senin hesabın okuyabilir.
 
+## 3c. Uygulama kapalıyken de "bitti" uyarısı (sürüm 7)
+
+Hesapla giriş yapmışsan ve Ayarlar › Bildirimler açıksa, süre başladığında bitiş zamanı Supabase'e yazılır. Supabase'deki `domates-push` fonksiyonu süre dolunca tüm cihazlarına bildirim gönderir; uygulama kapalı ya da telefon kilitli olsa da gelir. Ayarlar › Bildirimler'de "Sunucu bildirimi açık" yazmalı; **Sunucudan deneme** düğmesi 20 saniye sonra bir bildirim gönderir.
+
+Sunucu tarafının kurulumu (tablolar, fonksiyon, gizli anahtarlar) sohbetteki adımlarla bir kez yapılır. Gizli anahtarları bu depoya koyma.
+
 ## 3b. iPad / iPhone: kilit ekranında canlı sayaç
 
 Web uygulamaları kilit ekranında canlı sayaç gösteremez, ama iPad'in **Saat zamanlayıcısı** gösterebilir: en üstte sabit durur, canlı sayar, **duraklat / iptal** düğmeleri vardır. Domates, Başlat'a bastığında bu zamanlayıcıyı aynı süreyle başlatabilir.
@@ -89,7 +95,7 @@ Bir tarafta *Ayarlar › Panoya kopyala* (ya da *Dosyaya aktar*), diğer tarafta
 
 ## Güncelleme
 
-Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v6`).
+Yeni bir `index.html` yüklediğinde `sw.js` içindeki `VERSION` değerini artır (şu an `domates-v7`).
 
 ## Dosyalar
 

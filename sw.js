@@ -1,5 +1,5 @@
 // Domates offline service worker
-const VERSION = 'domates-v6';
+const VERSION = 'domates-v7';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './icon-badge.png', './supabase.js'];
 
 self.addEventListener('install', e => {
@@ -53,4 +53,14 @@ self.addEventListener('notificationclick', e => {
       await clients.openWindow('./' + (cmd ? '?cmd=' + cmd : ''));
     }
   })());
+});
+
+// Pushes from the server ("pomodoro finished" while the app is closed)
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'Domates', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Domates', {
+    body: d.body || '', tag: d.tag || 'domates', renotify: true, requireInteraction: true,
+    icon: 'icon-192.png', badge: 'icon-badge.png', vibrate: [300, 120, 300, 120, 300], lang: 'tr', data: {}
+  }));
 });

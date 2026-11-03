@@ -514,6 +514,8 @@ body.zen .current-task{max-width:230px;font-size:.95rem}
       <div class="row"><label for="notifOn">Bildirim panelinde göster</label><input id="notifOn" class="switch" type="checkbox"></div>
       <p class="hint" id="notifState"></p>
       <div><button type="button" class="icon-btn" id="notifTest">Deneme bildirimi gönder</button></div>
+      <p class="hint" id="pushState"></p>
+      <div><button type="button" class="icon-btn" id="pushTest" hidden>Sunucudan deneme (20 sn sonra)</button></div>
     </fieldset>
     <fieldset id="iosBox" hidden>
       <legend>iPad / iPhone kilit ekranı</legend>
@@ -1030,12 +1032,15 @@ N.inComplete=false;
 const SC_NAME='Domates Sayaç';
 function runClockTimer(min){const a=document.createElement('a');a.href='shortcuts://run-shortcut?name='+encodeURIComponent(SC_NAME)+'&input=text&text='+min;
   a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500)}
-start=function(){const was=running,fresh=remaining>=total;_start();if(!was&&running){saveTimer();N.sync();N.schedule();
+/* server alarm: lets the "finished" notification arrive even when the app is closed */
+function alarmText(){const task=N.taskName();if(mode==='focus'){const nx=(cycle+1)%S.every===0?'Uzun mola':'Kısa mola';return ['Pomodoro bitti 🍅',`Sırada: ${nx} (${S[nx==='Uzun mola'?'long':'short']} dk)`+(task?' · '+task:'')]}
+  return ['Mola bitti',`Odaklanma zamanı (${S.focus} dk)`]}
+start=function(){const was=running,fresh=remaining>=total;_start();if(!was&&running){saveTimer();N.sync();N.schedule();const [at,ab]=alarmText();window.__alarm&&window.__alarm.set(endAt,at,ab);
   if(S.iosTimer&&fresh&&!N.inComplete)setTimeout(()=>runClockTimer(Math.round(total/60000)),250)}};
-pause=function(){const was=running;_pause();if(was&&!running){saveTimer();N.sync();N.close('domates-due')}};
+pause=function(){const was=running;_pause();if(was&&!running){saveTimer();N.sync();N.close('domates-due');window.__alarm&&window.__alarm.clear()}};
 setMode=function(m,k){_setMode(m,k);saveTimer();if(!running)N.sync()};
-complete=function(skipped){const was=mode;N.inComplete=true;try{_complete(skipped)}finally{N.inComplete=false}saveTimer();if(skipped){N.close('domates-due');N.sync()}else N.done(was)};
-$('#resetBtn').addEventListener('click',()=>{saveTimer();N.sync()});
+complete=function(skipped){const was=mode;window.__alarm&&window.__alarm.clear();N.inComplete=true;try{_complete(skipped)}finally{N.inComplete=false}saveTimer();if(skipped){N.close('domates-due');N.sync()}else N.done(was)};
+$('#resetBtn').addEventListener('click',()=>{saveTimer();N.sync();window.__alarm&&window.__alarm.clear()});
 
 /* a worker keeps ticking when the window is minimised (page timers get slowed down) */
 try{const w=new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),1000)'],{type:'text/javascript'})));
@@ -1233,6 +1238,33 @@ window.__save=async()=>{if(!uid)return baseSave();
     okSt('Kaydedildi '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));$('#jSaved').textContent='Kaydedildi';toast('Kaydedildi. Tüm cihazlarda güncel.')}
   catch(e){errSt(e);setPend(1);toast('Kaydedilemedi. Bağlantını kontrol edip tekrar dene.')}};
 
+/* server push: this device's subscription and the running timer's end time */
+const VAPID='BL0z6QaiEYDirdrkewsgxP7lamVrnA1mem2AAaqFNDOwLfxIDBEgoCgMNbtLZKqGMO08MrGWmNpnrS_RnK9yT_c';
+let pushOK=false,alarmQ=Promise.resolve();
+const b64u=x=>{const pad='='.repeat((4-x.length%4)%4),raw=atob((x+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))};
+function pushState(){const el=$('#pushState'),bt=$('#pushTest');if(!el)return;
+  if(!('PushManager' in window)){el.textContent='';bt.hidden=true;return}
+  if(!uid){el.textContent='Uygulama kapalıyken de uyarı almak için Hesap ve eşitleme bölümünden giriş yap.';bt.hidden=true;return}
+  if(pushOK){el.textContent='Sunucu bildirimi açık: uygulama kapalıyken de süre bitince uyarı gelir.';bt.hidden=false}
+  else{el.textContent=S.notif&&Notification.permission==='granted'?'Sunucu bildirimi kurulamadı. İnterneti kontrol edip anahtarı kapatıp aç.':'';bt.hidden=true}}
+async function ensurePush(){pushOK=false;
+  try{if(!uid||!('PushManager' in window)||!S.notif||Notification.permission!=='granted'){pushState();return false}
+    const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)});
+    const j=sub.toJSON();const {error}=await sb.from('domates_push').upsert({endpoint:j.endpoint,user_id:uid,sub:j},{onConflict:'endpoint'});if(error)throw error;
+    pushOK=true}catch(e){console.warn('push',e)}
+  pushState();return pushOK}
+async function dropPush(){try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+  if(sub){if(uid)await sb.from('domates_push').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}}catch(e){}pushOK=false;pushState()}
+window.__alarm={
+  set:(at,title,body)=>{if(!uid)return;alarmQ=alarmQ.then(()=>sb.from('domates_alarms').upsert({user_id:uid,fire_at:new Date(at).toISOString(),title,body,sent:false},{onConflict:'user_id'})).then(r=>{if(r&&r.error)console.warn(r.error)}).catch(()=>{})},
+  clear:()=>{if(!uid)return;alarmQ=alarmQ.then(()=>sb.from('domates_alarms').delete().eq('user_id',uid)).catch(()=>{})}};
+$('#notifOn').addEventListener('change',()=>setTimeout(()=>{S.notif&&Notification.permission==='granted'?ensurePush():dropPush()},400));
+$('#openSettings').addEventListener('click',pushState);
+$('#pushTest').addEventListener('click',()=>{if(running){toast('Önce sayacı durdur; deneme, çalışan sayacın uyarısının yerine geçer.');return}
+  window.__alarm.set(Date.now()+20000,'Deneme: sunucu bildirimi 🍅','Bu bildirim uygulama kapalıyken de gelir.');
+  toast('20 saniye içinde bildirim gelecek. İstersen uygulamayı kapat ve bekle.')});
+
 /* account box in settings */
 function showAcct(email){$('#acctOut').hidden=!!email;$('#acctIn').hidden=!email;$('#acWho').textContent=email||''}
 const msg=t=>{$('#acMsg').textContent=t};
@@ -1244,7 +1276,7 @@ const ERR=e=>{const m=((e&&e.message)||'').toLowerCase();
   if(m.includes('password')&&m.includes('6'))return 'Şifre en az 6 karakter olmalı.';
   if(m.includes('rate')||m.includes('too many'))return 'Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.';
   return 'Olmadı: '+((e&&e.message)||'bilinmeyen hata')};
-async function begin(session){uid=session.user.id;showAcct(session.user.email);await load()}
+async function begin(session){uid=session.user.id;showAcct(session.user.email);await load();ensurePush()}
 function creds(){const email=$('#acEmail').value.trim(),password=$('#acPass').value;
   if(!email||!email.includes('@')){msg('Geçerli bir e-posta yaz.');return null}if(password.length<6){msg('Şifre en az 6 karakter olmalı.');return null}return {email,password}}
 async function signIn(){const c=creds();if(!c)return;msg('Giriş yapılıyor…');
@@ -1259,7 +1291,7 @@ $('#acSync').onclick=async()=>{await window.__save()};
 $('#acOut').onclick=async()=>{const b=$('#acOut');if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Emin misin? Tekrar dokun';return}
   b.classList.remove('armed');b.textContent='Çıkış yap';
   if(window.__dirty()&&navigator.onLine)await window.__save();
-  stopListen();try{await sb.auth.signOut({scope:'local'})}catch(e){}
+  window.__alarm.clear();await alarmQ;await dropPush();stopListen();try{await sb.auth.signOut({scope:'local'})}catch(e){}
   uid=null;ready=false;failed=false;setPend(0);showAcct('');outSt();toast('Çıkış yapıldı. Veriler bu cihazda kalmaya devam ediyor.')};
 
 window.addEventListener('offline',()=>{if(uid)offSt()});
@@ -1267,7 +1299,7 @@ window.addEventListener('online',()=>{if(!uid)return;if(!ready)load();else if(wi
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&uid){if(!ready)load();else refresh()}});
 
 (async()=>{let s=null;try{s=(await sb.auth.getSession()).data.session}catch(e){}
-  if(s){uid=s.user.id;showAcct(s.user.email);if(!navigator.onLine)offSt();else load()}else{showAcct('');outSt()}})();
+  if(s){uid=s.user.id;showAcct(s.user.email);if(!navigator.onLine)offSt();else load().then(ensurePush)}else{showAcct('');outSt();pushState()}})();
 })();
 
 })();
