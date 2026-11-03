@@ -1,6 +1,6 @@
 // Domates offline service worker
-const VERSION = 'domates-v1';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+const VERSION = 'domates-v3';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './icon-badge.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
@@ -36,4 +36,21 @@ self.addEventListener('fetch', e => {
 
   // Other files: cache first
   e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return r; })));
+});
+
+// Notification taps and buttons: bring the app forward and pass the command (pause, start, skip, reset)
+self.addEventListener('notificationclick', e => {
+  // iOS shows no buttons, so a tap carries the main action in data.tap
+  const cmd = e.action || (e.notification.data && e.notification.data.tap) || '';
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const c = all.find(w => new URL(w.url).pathname.startsWith(new URL(self.registration.scope).pathname)) || all[0];
+    if (c) {
+      if (cmd) c.postMessage({ domates: cmd });
+      try { await c.focus(); } catch (err) {}
+    } else {
+      await clients.openWindow('./' + (cmd ? '?cmd=' + cmd : ''));
+    }
+  })());
 });

@@ -332,6 +332,12 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
       <div class="row"><label for="autoCheck">Tahmine ulaşan görevi tamamla</label><input id="autoCheck" class="switch" type="checkbox"></div>
     </fieldset>
     <fieldset>
+      <legend>Bildirimler</legend>
+      <div class="row"><label for="notifOn">Bildirim panelinde göster</label><input id="notifOn" class="switch" type="checkbox"></div>
+      <p class="hint" id="notifState"></p>
+      <div><button type="button" class="icon-btn" id="notifTest">Deneme bildirimi gönder</button></div>
+    </fieldset>
+    <fieldset>
       <legend>Ses</legend>
       <div class="row"><label for="soundOn">Bitiş zili</label><input id="soundOn" class="switch" type="checkbox"></div>
       <div class="row"><label for="tickOn">Son 10 saniyede tık sesi</label><input id="tickOn" class="switch" type="checkbox"></div>
@@ -363,7 +369,7 @@ const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem('dom_'+k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem('dom_'+k,JSON.stringify(v))}catch(e){}window.__cm&&window.__cm(k)}};
 
-const DEF={focus:25,short:5,long:15,every:4,autoBreak:false,autoFocus:false,autoCheck:true,sound:true,tick:false,vol:.6};
+const DEF={focus:25,short:5,long:15,every:4,autoBreak:false,autoFocus:false,autoCheck:true,sound:true,tick:false,vol:.6,notif:false};
 let S={...DEF,...store.get('settings',{})};
 let tasks=store.get('tasks',null);
 if(!tasks){tasks=[
@@ -524,7 +530,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running){try{navigator.wakeLock?.request('screen').then(w=>wake=w).catch(()=>{})}catch(e){}}});
 
 /* settings */
-const F={dFocus:'focus',dShort:'short',dLong:'long',dEvery:'every'},B={autoBreak:'autoBreak',autoFocus:'autoFocus',autoCheck:'autoCheck',soundOn:'sound',tickOn:'tick'};
+const F={dFocus:'focus',dShort:'short',dLong:'long',dEvery:'every'},B={autoBreak:'autoBreak',autoFocus:'autoFocus',autoCheck:'autoCheck',soundOn:'sound',tickOn:'tick',notifOn:'notif'};
 function openSet(){for(const id in F)$('#'+id).value=S[F[id]];for(const id in B)$('#'+id).checked=S[B[id]];$('#vol').value=S.vol;
   $('#resetData').classList.remove('armed');$('#resetData').textContent='Tüm verileri sil';$('#settings').hidden=false;$('#dFocus').focus()}
 function closeSet(){
@@ -575,6 +581,91 @@ window.__rj=renderJ;window.__sj=setJ;
 
 document.body.dataset.mode=mode;
 renderTasks();renderStats();render();
+
+/* ---------- installed app: timer that survives closing, notification panel ---------- */
+const N={reg:null,lastMin:-1};
+const hhmm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+N.supported=()=>'Notification' in window&&'serviceWorker' in navigator;
+N.ok=()=>S.notif&&N.supported()&&Notification.permission==='granted'&&!!N.reg;
+N.show=async(title,o={})=>{if(!N.ok())return;const {tap,...rest}=o;rest.data={};
+  if(isIOS&&tap){rest.data.tap=tap.cmd;rest.body=(rest.body?rest.body+'\n':'')+'👆 '+tap.hint;delete rest.actions}
+  try{await N.reg.showNotification(title,{tag:'domates',icon:'icon-192.png',badge:'icon-badge.png',lang:'tr',silent:true,renotify:false,...rest})}catch(e){}};
+N.close=async(tag='domates')=>{try{(await N.reg?.getNotifications({tag}))?.forEach(n=>n.close())}catch(e){}};
+N.taskName=()=>{const t=tasks.find(x=>x.id===activeId);return mode==='focus'&&t?t.text:''};
+N.sync=()=>{
+  if(!N.ok())return;
+  const task=N.taskName();
+  if(running){const left=Math.max(0,endAt-Date.now()),m=Math.ceil(left/60000);N.lastMin=m;
+    N.show(`${LABEL[mode]} · ${m} dk kaldı`,{body:`Bitiş ${hhmm(endAt)}${task?' · '+task:''}`,timestamp:endAt,
+      actions:[{action:'pause',title:'Duraklat'},{action:'skip',title:'Geç'}]});}
+  else if(remaining<total){
+    N.show(`Duraklatıldı · ${fmt(remaining)} kaldı`,{body:LABEL[mode]+(task?' · '+task:''),
+      actions:[{action:'start',title:'Devam et'},{action:'reset',title:'Sıfırla'}],tap:{cmd:'start',hint:'Dokun, devam etsin'}});}
+  else{
+    N.show(`Sırada: ${LABEL[mode]} (${S[mode]} dk)`,{body:task?'Görev: '+task:(isIOS?'':'Başlatmak için dokun'),
+      actions:[{action:'start',title:'Başlat'}],tap:{cmd:'start',hint:'Dokun, başlasın'}});}
+};
+/* when the OS freezes the app, a scheduled alert still fires where the browser supports it */
+N.schedule=()=>{if(!N.ok()||!('TimestampTrigger' in window))return;N.close('domates-due');
+  if(running)try{N.reg.showNotification(mode==='focus'?'Pomodoro bitti 🍅':'Mola bitti',{tag:'domates-due',icon:'icon-192.png',badge:'icon-badge.png',
+    body:'Uygulamayı açıp devam et',showTrigger:new TimestampTrigger(endAt),requireInteraction:true,vibrate:[300,120,300]})}catch(e){}};
+N.done=(was)=>{if(!N.ok())return;N.close('domates-due');
+  const next=running?`${LABEL[mode]} başladı · bitiş ${hhmm(endAt)}`:`Sırada: ${LABEL[mode]} (${S[mode]} dk)`;
+  N.show(was==='focus'?'Pomodoro bitti 🍅':'Mola bitti, odaklanma zamanı',{body:next,silent:false,renotify:true,requireInteraction:true,
+    vibrate:[300,120,300,120,300],actions:running?[{action:'pause',title:'Duraklat'}]:[{action:'start',title:mode==='focus'?'Odağı başlat':'Molayı başlat'}],
+    tap:running?null:{cmd:'start',hint:mode==='focus'?'Dokun, odak başlasın':'Dokun, mola başlasın'}});
+};
+
+/* timer state survives closing the app */
+function saveTimer(){store.set('timer',{mode,running,endAt,remaining,total})}
+const _start=start,_pause=pause,_complete=complete,_setMode=setMode;
+start=function(){const was=running;_start();if(!was&&running){saveTimer();N.sync();N.schedule()}};
+pause=function(){const was=running;_pause();if(was&&!running){saveTimer();N.sync();N.close('domates-due')}};
+setMode=function(m,k){_setMode(m,k);saveTimer();if(!running)N.sync()};
+complete=function(skipped){const was=mode;_complete(skipped);saveTimer();if(skipped){N.close('domates-due');N.sync()}else N.done(was)};
+$('#resetBtn').addEventListener('click',()=>{saveTimer();N.sync()});
+
+/* a worker keeps ticking when the window is minimised (page timers get slowed down) */
+try{const w=new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),1000)'],{type:'text/javascript'})));
+  w.onmessage=()=>{if(!running)return;if(endAt-Date.now()<=0){loop();return}if(!isIOS&&Math.ceil((endAt-Date.now())/60000)!==N.lastMin)N.sync()}}catch(e){}
+document.addEventListener('visibilitychange',()=>{if(running&&endAt-Date.now()<=0)loop()});
+
+/* restore a timer that was running when the app was closed */
+(()=>{const t=store.get('timer',null);if(!t||!LABEL[t.mode])return;
+  _setMode(t.mode);if(t.total>0)total=t.total;
+  if(t.running){if(t.endAt>Date.now()){remaining=t.endAt-Date.now();_start()}else{remaining=0;N.pendingDone=t.mode;complete(false)}}
+  else if(t.remaining>0&&t.remaining<total){remaining=t.remaining}
+  render()})();
+
+/* commands from notification buttons */
+function runCmd(c){if(c==='pause')pause();else if(c==='start')start();else if(c==='skip')complete(true);else if(c==='reset')$('#resetBtn').click()}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.domates)runCmd(e.data.domates)});
+  navigator.serviceWorker.ready.then(r=>{N.reg=r;if(N.pendingDone){N.done(N.pendingDone);N.pendingDone=null}else{N.sync();N.schedule()}}).catch(()=>{});
+}
+(()=>{try{const u=new URL(location.href),c=u.searchParams.get('cmd');if(c){u.searchParams.delete('cmd');history.replaceState(null,'',u.pathname+u.search);setTimeout(()=>runCmd(c),300)}}catch(e){}})();
+
+/* settings: notification switch */
+function notifState(){const el=$('#notifState'),sw=$('#notifOn');
+  if(!N.supported()){sw.checked=false;sw.disabled=true;
+    el.textContent=isIOS&&!standalone?'iPhone ve iPad\'de bildirimler için uygulamayı önce Safari › Paylaş › Ana Ekrana Ekle ile kur, sonra ana ekrandaki simgeden aç (iOS 16.4 ve üstü).':'Bu tarayıcı bildirimleri desteklemiyor. Chrome, Edge ya da Safari\'de dene.';return}
+  const p=Notification.permission;sw.disabled=false;
+  if(p==='denied'){sw.checked=false;el.textContent='Bildirim izni kapalı. Tarayıcının ya da telefonun ayarlarından bu uygulamaya bildirim izni ver, sonra tekrar aç.'}
+  else if(p==='granted'&&S.notif)el.textContent=isIOS?'Açık. iPhone ve iPad bildirimde düğme göstermez: bildirime dokunmak sıradaki adımı başlatır (devam, mola, odak). Çalışan sayaçta dokunmak uygulamayı açar.':'Açık. Sayaç bildirim panelinde görünür; düğmelerle duraklatıp geçebilirsin.';
+  else el.textContent='Sayaç ve bitiş uyarıları bildirim panelinde görünür.'}
+$('#notifOn').addEventListener('change',async e=>{
+  if(e.target.checked&&N.supported()&&Notification.permission!=='granted'){
+    let p='default';try{p=await Notification.requestPermission()}catch(err){}
+    if(p!=='granted'){e.target.checked=false;S.notif=false;store.set('settings',S);notifState();return}}
+  S.notif=e.target.checked;store.set('settings',S);
+  if(S.notif){if(!N.reg&&'serviceWorker' in navigator)N.reg=await navigator.serviceWorker.ready;N.sync();N.schedule()}else{N.close();N.close('domates-due')}
+  notifState()});
+$('#notifTest').addEventListener('click',async()=>{if(!N.ok()){toast('Önce bildirimleri aç');return}
+  await N.show('Domates bildirimleri çalışıyor 🍅',{body:'Sayaç burada görünecek.',silent:false,renotify:true});setTimeout(N.sync,4000)});
+$('#openSettings').addEventListener('click',()=>{$('#notifOn').checked=!!S.notif;notifState()});
+
 
 /* backup: export / import (merges, never deletes) */
 function exportData(){flushJ();return JSON.stringify({app:'domates',v:1,exportedAt:new Date().toISOString(),settings:S,tasks,active:activeId,cycle,hist,manual,notes})}
